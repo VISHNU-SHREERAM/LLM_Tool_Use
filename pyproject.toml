@@ -1,0 +1,36 @@
+[project]
+name = "voicecontrol"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "just>=0.8.162",
+    "psutil>=7.0.0",
+ "pyyaml>=6.0.2",
+ "ruff>=0.9.6",
+]
+
+# ruff
+[tool.ruff]
+line-length = 120
+exclude = [
+    "build",
+    "dist",
+    "venv",
+    ".tox",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    "__pycache__",
+    ".vscode",
+    ".idea",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".vscode",
+    ".idea",
+]
+
+[tool.ruff.lint]
+select = ["ALL"]
+#"ANN001", "ANN002", "ANN003"

@@ -1,0 +1,35 @@
+[project]
+name = "application"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.8",
+    "pyyaml>=6.0.2",
+    "requests>=2.32.3",
+    "ruff>=0.9.7",
+    "toml>=0.10.2",
+]
+
+[tool.ruff]
+line-length = 120
+exclude = [
+    "build",
+    "dist",
+    "venv",
+    ".tox",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    "__pycache__",
+    ".vscode",
+    ".idea",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".vscode",
+    ".idea",
+]
+
+[tool.ruff.lint]
+select = ["ANN001", "ANN002", "ANN003"]
