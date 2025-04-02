@@ -1,13 +1,9 @@
-aggregator_service:
-  host: 10.32.4.200
-  port: 8000
-  reload: true
 browser_service:
-  host: 10.32.4.200
+  host: 10.32.4.89
   port: 8001
 hardware_service:
-  host: 10.32.4.200
+  host: 10.32.4.89
   port: 8003
 logger_service:
-  host: 10.32.4.200
+  host: 10.32.4.89
   port: 8080
