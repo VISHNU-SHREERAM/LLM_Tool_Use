@@ -12,6 +12,23 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.responses import Response as StarletteResponse
 import httpx
 import toml
+import sys
+from pathlib import Path
+from loguru import logger
+from fastapi.staticfiles import StaticFiles
+
+
+parent_dir = Path(__file__).resolve().parent.parent
+sys.path.append(str(parent_dir))
+
+from unified_logging.config_types import LoggingConfigs  # noqa: E402
+from unified_logging.logging_client import setup_network_logger_client  # noqa: E402
+
+LOGGING_CONFIG_PATH = Path("..", "unified_logging/logging_config.toml")
+if LOGGING_CONFIG_PATH.exists():
+    logging_configs = LoggingConfigs.load_from_path(LOGGING_CONFIG_PATH)
+    setup_network_logger_client(logging_configs, logger)
+    logger.info("hardware service started with unified logging")
 
 
 app = FastAPI()
@@ -19,22 +36,27 @@ app = FastAPI()
 camera: cv2.VideoCapture | None = None
 camera_lock: Lock = Lock()
 
+Path("camera_images").mkdir(exist_ok=True)
+
+# Mount the directory for direct access to the images
+app.mount("/images", StaticFiles(directory="camera_images"), name="images")
+
 # def logger_info(message:str):
 #     "Log message in a server."
 #     url = toml.load("log_config.toml")["url"]+"/log"
 #     httpx.request(method="POST", url=url, json={"message":message})
+
 
 @app.middleware("http")
 async def add_cors_header(
     request: Request,
     call_next: Callable[[Request], Awaitable[StarletteResponse]],
 ) -> StarletteResponse:
-    """Middleware to add CORS header to each response.
-    Allows all origins (*). For production, specify allowed domains.
-    """
+    """Middleware to add CORS header to each response."""
+    logger.info(f"Processing request: {request.method} {request.url}")
     response: StarletteResponse = await call_next(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
-    # logger_info("adding cors headers")
+    logger.info(f"Response status: {response.status_code}")
     return response
 
 
@@ -44,20 +66,19 @@ async def startup_event() -> None:
     If the camera cannot be opened or warmed up, raise an exception.
     """
     global camera
+    logger.info("Starting up hardware service...")
     camera = cv2.VideoCapture(0)
     if not camera.isOpened():
-        # logger_info("Could not open camera at startup.")
+        logger.error("Could not open camera at startup.")
         raise Exception("Error: Could not open camera at startup.")
-    # logger_info("Camera initialized")
-    # Warm up the camera by reading and discarding a few frames
+    logger.info("Camera initialized successfully.")
     for _ in range(10):
         ret, _ = camera.read()
         if not ret:
-            # logger_info("Could not warmup camera")
+            logger.error("Could not warm up camera.")
             raise Exception("Error: Could not warm up camera.")
-        # Slight delay to allow the camera to adjust (if needed)
         await asyncio.sleep(0.1)
-    # logger_info("Camera warmed up")
+    logger.info("Camera warmed up successfully.")
     print("Camera initialized and warmed up.")
 
 
@@ -65,55 +86,89 @@ async def startup_event() -> None:
 def shutdown_event() -> None:
     """On shutdown, release the camera resource if it exists."""
     global camera
-    # logger_info("shutting down camera")
+    logger.info("Shutting down hardware service...")
     if camera is not None:
         camera.release()
+        logger.info("Camera resource released successfully.")
 
 
 @app.get("/capture")
-async def capture() -> Response:
-    """Capture an image using the warmed-up camera and return it as a PNG image."""
-    global camera
-    # logger_info("capture request received")
-    if camera is None or not camera.isOpened():
-        # logger_info("camera not available")
-        raise HTTPException(status_code=500, detail="Camera not available.")
+async def capture():
+    """Take a photo with the camera and return it as base64."""
+    logger.info("Received request to capture an image.")
+    try:
+        import base64
+        import os
+        import time
+        from io import BytesIO
 
-    # Lock the camera access to avoid race conditions
-    with camera_lock:
-        for _ in range(10):
-            ret, frame = camera.read()
-        ret, frame = camera.read()
+        import cv2
 
-    if not ret:
-        # logger_info("failed to capture image")
-        raise HTTPException(status_code=500, detail="Failed to capture image.")
+        # Initialize camera
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            return {"error": "Could not open camera"}
 
-    # Encode the captured frame as a PNG image in memory
-    success, encoded_image = cv2.imencode(".png", frame)
-    if not success:
-        # logger_info("could not encode image")
-        raise HTTPException(status_code=500, detail="Could not encode image.")
-    # logger_info("image captured")
-    # Return the image as an in-memory response
-    return Response(content=encoded_image.tobytes(), media_type="image/png")
+        # Allow camera to initialize
+        # Some cameras need warming up
+        for _ in range(5):
+            cap.read()
+
+        # Capture frame
+        ret, frame = cap.read()
+        cap.release()
+
+        if not ret:
+            return {"error": "Could not capture image"}
+
+        # Create directory if it doesn't exist
+        Path("camera_images").mkdir(exist_ok=True)
+
+        # Save to file
+        filename = f"camera_{int(time.time())}.jpg"
+        filepath = Path("camera_images") / filename
+        cv2.imwrite(filepath, frame)
+
+        # Convert to base64 properly
+        _, buffer = cv2.imencode(".jpg", frame)
+        img_bytes = buffer.tobytes()
+        img_base64 = base64.b64encode(img_bytes).decode("utf-8")
+
+        logger.info(f"Image captured and saved as {filename}.")
+        return {
+            "message": "Camera image captured successfully",
+            "image_path": filepath,
+            "filename": filename,  # Add just the filename for easier access
+        }
+
+    except Exception as e:
+        logger.error(f"Camera capture failed: {str(e)}")
+        return {"error": f"Camera capture failed: {str(e)}"}
 
 
 @app.get("/screenshot")
 def screenshot() -> FileResponse:
     """Take a screenshot of the current screen and return it as a PNG image file."""
-    filename = f"./images/screenshot_{uuid.uuid4().hex}.png"
-    image = pyautogui.screenshot()
-    image.save(filename)
-    # logger_info("screenshot taken")
-    return FileResponse(path=filename, media_type="image/png", filename="screenshot.png")
+    logger.info("Received request to take a screenshot.")
+    try:
+        filename = f"./images/screenshot_{uuid.uuid4().hex}.png"
+        image = pyautogui.screenshot()
+        image.save(filename)
+        logger.info(f"Screenshot saved as {filename}.")
+        return FileResponse(
+            path=filename, media_type="image/png", filename="screenshot.png"
+        )
+    except Exception as e:
+        logger.error(f"Screenshot failed: {str(e)}")
+        return JSONResponse(content={"error": f"Screenshot failed: {str(e)}"})
 
 
 @app.get("/cpu")
 def cpu() -> JSONResponse:
     """Returns the current CPU usage percentage."""
+    logger.info("Received request for CPU usage.")
     cpu_percent = psutil.cpu_percent(interval=0.5)
-    # logger_info("cpu info obtained")
+    logger.info(f"CPU usage: {cpu_percent}%")
     return JSONResponse(content={"cpu_percent": cpu_percent})
 
 
@@ -136,7 +191,11 @@ def format_size(byte_size: float) -> str:
 @app.get("/disk")
 def disk() -> JSONResponse:
     """Returns disk usage information (total, used, free) in a formatted string."""
+    logger.info("Received request for disk usage.")
     total, used, free = get_disk_usage()
+    logger.info(
+        f"Disk usage - Total: {format_size(total)}, Used: {format_size(used)}, Free: {format_size(free)}"
+    )
     return JSONResponse(
         content={
             "total": format_size(total),
@@ -149,10 +208,13 @@ def disk() -> JSONResponse:
 @app.get("/ram")
 def ram() -> JSONResponse:
     """Returns total, used, and available RAM in a formatted string."""
+    logger.info("Received request for RAM usage.")
     total = psutil.virtual_memory().total
     available = psutil.virtual_memory().available
     used = total - available
-    # logger_info("ram info obtained")
+    logger.info(
+        f"RAM usage - Total: {format_size(total)}, Used: {format_size(used)}, Available: {format_size(available)}"
+    )
     return JSONResponse(
         content={
             "total": format_size(total),
@@ -166,9 +228,12 @@ def ram() -> JSONResponse:
 @app.get("/cpuinfo")
 def cpuinfo() -> JSONResponse:
     """Returns the number of cores, CPU architecture, and name."""
+    logger.info("Received request for CPU information.")
     try:
         cpu_info = psutil.cpu_stats()
-        # logger_info("cpu info obtained")
+        logger.info(
+            f"CPU info - Cores: {cpu_info.cores}, Arch: {cpu_info.arch}, Name: {cpu_info.name}"
+        )
         return JSONResponse(
             content={
                 "cores": cpu_info.cores,
@@ -176,13 +241,11 @@ def cpuinfo() -> JSONResponse:
                 "name": cpu_info.name,
             },
         )
-    except:
-        return JSONResponse(
-            content={
-                "cores": psutil.cpu_count()
-            }
-        )
-    
+    except Exception as e:
+        logger.error(f"Failed to retrieve CPU info: {str(e)}")
+        return JSONResponse(content={"error": f"Failed to retrieve CPU info: {str(e)}"})
+
+
 ###############################################################################
 # 6. Run the Application
 ###############################################################################

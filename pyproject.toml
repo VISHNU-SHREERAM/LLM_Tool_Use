@@ -9,6 +9,7 @@ dependencies = [
     "just>=0.8.162",
     "langchain>=0.3.22",
     "langchain-ollama>=0.3.0",
+    "loguru>=0.7.3",
     "opencv-python>=4.11.0.86",
     "playwright>=1.51.0",
     "psutil>=7.0.0",
@@ -17,6 +18,7 @@ dependencies = [
     "ruff>=0.9.6",
     "toml>=0.10.2",
     "uvicorn>=0.34.0",
+    "zmq>=0.0.0",
 ]
 
 # ruff

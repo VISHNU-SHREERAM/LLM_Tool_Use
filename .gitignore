@@ -178,4 +178,5 @@ logs.txt
 # log folder
 logs/
 
-# png files inside images folder in hardware
+#files in camera_images folder 
+camera_images/
