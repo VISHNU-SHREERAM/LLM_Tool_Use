@@ -18,10 +18,18 @@ default: hello
 # A recipe to run the project
 @run:
     echo "starting the project..."
+
     uv sync
-    cd unified_logging && uv run .\start_logging_server.py &
-    cd browser_control && uv run .\browser.py &
-    cd HardwareApplication && uv run .\hardware.py &
-    cd tool_use && uv run fastapi run llm.py &
+
+    cd unified_logging && uv run ./start_logging_server.py & pid1=$!
+    sleep 2
+    cd ./browser_control && uv run ./browser.py & pid2=$!
+    cd ./HardwareApplication && uv run ./hardware.py & pid3=$!
+    sleep 2
+    cd ./tool_use && uv run llm.py & pid4=$!
+    sleep 5
     echo "access the UI at http://localhost:5000"
-    cd UI && uv run python -m http.server 5000
+    cd ./UI && uv run python -m http.server 5000
+
+    trap "kill $pid1 $pid2 $pid3 $pid4" SIGINT SIGTERM EXIT
+    wait

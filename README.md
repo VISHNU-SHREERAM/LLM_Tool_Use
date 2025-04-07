@@ -21,7 +21,7 @@ https://docs.astral.sh/uv/getting-started/installation/
 
 
 ```bash
-just build 
+just setup 
 ```
 
 ## Step 3: Install Required Models

@@ -95,3 +95,8 @@ def query_endpoint(request: QueryRequest):
     except Exception as e:
         logger.error(f"Error during API query: {e!s}")
         return {"error": str(e)}
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)

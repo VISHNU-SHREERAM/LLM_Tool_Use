@@ -405,5 +405,5 @@ TOOLS = [
     show_ram,
     show_disk,
     show_cpu,
-    show_hardware_info,
+    # show_hardware_info,
 ]
