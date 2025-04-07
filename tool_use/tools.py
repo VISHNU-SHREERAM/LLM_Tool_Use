@@ -53,6 +53,7 @@ def open_new_window() -> None:
 
     Returns:
         Information about the operation status as a JSON object
+
     """
     logger.info("Executing open_new_window tool")
     response = httpx.get(url=BROWSER_URL + "/browser/open_new_window")
@@ -235,12 +236,11 @@ def open_camera() -> dict:
                 "message": "Camera opened but no image data was returned",
                 "raw_response": result,
             }
-        else:
-            return {
-                "success": False,
-                "error": f"Server returned error: {response.status_code}",
-                "details": response.text,
-            }
+        return {
+            "success": False,
+            "error": f"Server returned error: {response.status_code}",
+            "details": response.text,
+        }
 
     except Exception as e:  # noqa: BLE001
         logger.error(f"Unknown error in open_camera: {e!s}")

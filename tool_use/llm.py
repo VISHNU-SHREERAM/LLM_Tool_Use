@@ -1,13 +1,11 @@
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.tools import tool
-from langchain_ollama.chat_models import ChatOllama
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from pydantic import BaseModel, Field
-from tools import TOOLS
 import sys
 from pathlib import Path
-from loguru import logger
 
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_ollama.chat_models import ChatOllama
+from loguru import logger
+from tools import TOOLS
 
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
@@ -42,7 +40,7 @@ def init_agent():
                     "placeholder",
                     "{agent_scratchpad}",
                 ),  # Necessary for tracking tool execution
-            ]
+            ],
         )
 
         logger.info("Creating tool-calling agent")
@@ -50,18 +48,17 @@ def init_agent():
 
         logger.info("Wrapping agent inside an executor")
         executor = AgentExecutor(
-            agent=agent, tools=TOOLS, verbose=True, handle_parsing_errors=True
+            agent=agent, tools=TOOLS, verbose=True, handle_parsing_errors=True,
         )
 
         return executor
     except Exception as e:
-        logger.error(f"Error initializing agent: {str(e)}")
+        logger.error(f"Error initializing agent: {e!s}")
         return None
 
 
 def main():
     """Main function to run the LLM agent in a loop"""
-
     # Initialize the agent
     executor = init_agent()
     if not executor:
@@ -93,8 +90,8 @@ def main():
             print("\n" + "-" * 50 + "\n")  # Separator for readability
 
         except Exception as e:
-            logger.error(f"Error during execution: {str(e)}")
-            print(f"An error occurred: {str(e)}")
+            logger.error(f"Error during execution: {e!s}")
+            print(f"An error occurred: {e!s}")
 
 
 if __name__ == "__main__":

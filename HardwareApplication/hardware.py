@@ -1,22 +1,19 @@
 import asyncio
 import shutil
+import sys
 import uuid
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from threading import Lock
 
 import cv2
 import psutil
 import pyautogui
-from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
-from starlette.responses import Response as StarletteResponse
-import httpx
-import toml
-import sys
-from pathlib import Path
-from loguru import logger
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-
+from loguru import logger
+from starlette.responses import Response as StarletteResponse
 
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
@@ -41,11 +38,6 @@ Path("camera_images").mkdir(exist_ok=True)
 # Mount the directory for direct access to the images
 app.mount("/images", StaticFiles(directory="camera_images"), name="images")
 
-# def logger_info(message:str):
-#     "Log message in a server."
-#     url = toml.load("log_config.toml")["url"]+"/log"
-#     httpx.request(method="POST", url=url, json={"message":message})
-
 
 @app.middleware("http")
 async def add_cors_header(
@@ -63,6 +55,7 @@ async def add_cors_header(
 @app.on_event("startup")
 async def startup_event() -> None:
     """On startup, open the camera and perform a warmup.
+
     If the camera cannot be opened or warmed up, raise an exception.
     """
     global camera
@@ -70,16 +63,17 @@ async def startup_event() -> None:
     camera = cv2.VideoCapture(0)
     if not camera.isOpened():
         logger.error("Could not open camera at startup.")
-        raise Exception("Error: Could not open camera at startup.")
+        msg = "Error: Could not open camera at startup."
+        raise Exception(msg)
     logger.info("Camera initialized successfully.")
     for _ in range(10):
         ret, _ = camera.read()
         if not ret:
             logger.error("Could not warm up camera.")
-            raise Exception("Error: Could not warm up camera.")
+            msg = "Error: Could not warm up camera."
+            raise Exception(msg)
         await asyncio.sleep(0.1)
     logger.info("Camera warmed up successfully.")
-    print("Camera initialized and warmed up.")
 
 
 @app.on_event("shutdown")
@@ -93,14 +87,12 @@ def shutdown_event() -> None:
 
 
 @app.get("/capture")
-async def capture():
+async def capture() -> JSONResponse:
     """Take a photo with the camera and return it as base64."""
     logger.info("Received request to capture an image.")
     try:
         import base64
-        import os
         import time
-        from io import BytesIO
 
         import cv2
 
@@ -135,46 +127,27 @@ async def capture():
         img_base64 = base64.b64encode(img_bytes).decode("utf-8")
 
         logger.info(f"Image captured and saved as {filename}.")
-        return {
+        return {  # noqa: TRY300
             "message": "Camera image captured successfully",
             "image_path": filepath,
             "filename": filename,  # Add just the filename for easier access
         }
 
-    except Exception as e:
-        logger.error(f"Camera capture failed: {str(e)}")
-        return {"error": f"Camera capture failed: {str(e)}"}
+    except (Exception, BaseException) as e:
+        logger.error(f"Camera capture failed: {e!s}")
+        return {"error": f"Camera capture failed: {e!s}"}
 
 
 @app.get("/screenshot")
-async def screenshot():
-    """Take a screenshot of the current screen and return information about the saved image."""
+async def screenshot() -> JSONResponse:
+    """Take a screenshot of the current screen.
+
+    Returns information about the saved image.
+    """
     logger.info("Received request to take a screenshot.")
 
     # Import check as a separate step with detailed logging
     try:
-        # First try to import PIL to check if Pillow is installed
-        try:
-            from PIL import Image
-
-            logger.info("PIL/Pillow is available")
-        except ImportError as e:
-            logger.error(f"PIL import error: {str(e)}")
-            return {
-                "error": f"Screenshot failed: Pillow is not installed. Please run 'pip install pillow'."
-            }
-
-        # Then try to import pyautogui separately
-        try:
-            import pyautogui
-
-            logger.info("PyAutoGUI is available")
-        except ImportError as e:
-            logger.error(f"PyAutoGUI import error: {str(e)}")
-            return {
-                "error": f"Screenshot failed: PyAutoGUI is not installed. Please run 'pip install pyautogui'."
-            }
-
         # Create directory if it doesn't exist
         Path("camera_images").mkdir(exist_ok=True)
 
@@ -196,24 +169,18 @@ async def screenshot():
                 "image_path": str(filepath),
                 "filename": filename,
             }
-        except Exception as screenshot_error:
-            logger.error(
-                f"Error during screenshot capture or save: {str(screenshot_error)}"
-            )
-            return {
-                "error": f"Screenshot operation failed: {str(screenshot_error)}. This might be due to display server access restrictions."
-            }
+        except (Exception, BaseException) as screenshot_error:
+            logger.error(f"Error during screenshot capture or save: {screenshot_error!s}")
+            return {"error": f"Screenshot operation failed: {screenshot_error!s}."}
 
-    except Exception as e:
-        logger.error(f"Screenshot failed with unexpected error: {str(e)}")
-        return {
-            "error": f"Screenshot failed with unexpected error: {str(e)}. Please ensure both 'pyautogui' and 'pillow' are installed."
-        }
+    except (Exception, BaseException) as e:
+        logger.error(f"Screenshot failed with unexpected error: {e!s}")
+        return {"error": f"Screenshot failed with unexpected error: {e!s}."}
 
 
 @app.get("/cpu")
 def cpu() -> JSONResponse:
-    """Returns the current CPU usage percentage."""
+    """Return the current CPU usage percentage."""
     logger.info("Received request for CPU usage.")
     cpu_percent = psutil.cpu_percent(interval=0.5)
     logger.info(f"CPU usage: {cpu_percent}%")
@@ -221,14 +188,16 @@ def cpu() -> JSONResponse:
 
 
 def get_disk_usage() -> tuple[int, int, int]:
-    """Returns disk usage (total, used, free) in bytes for the root path."""
+    """Return disk usage (total, used, free) in bytes for the root path."""
     total, used, free = shutil.disk_usage("/")
-    # logger_info("disk info obtained")
     return total, used, free
 
 
 def format_size(byte_size: float) -> str:
-    """Formats a byte value into a human-readable string (e.g., B, KB, MB, GB, TB)."""
+    """Format the byte value into a human-readable string.
+
+    Converts bytes to appropriate units (B, KB, MB, GB, TB) based on size.
+    """
     for unit in ["B", "KB", "MB", "GB", "TB"]:
         if byte_size < 1024:
             return f"{byte_size:.2f}{unit}"
@@ -242,7 +211,7 @@ def disk() -> JSONResponse:
     logger.info("Received request for disk usage.")
     total, used, free = get_disk_usage()
     logger.info(
-        f"Disk usage - Total: {format_size(total)}, Used: {format_size(used)}, Free: {format_size(free)}"
+        f"Disk usage - Total: {format_size(total)}, Used: {format_size(used)}, Free: {format_size(free)}",
     )
     return JSONResponse(
         content={
@@ -261,7 +230,7 @@ def ram() -> JSONResponse:
     available = psutil.virtual_memory().available
     used = total - available
     logger.info(
-        f"RAM usage - Total: {format_size(total)}, Used: {format_size(used)}, Available: {format_size(available)}"
+        f"RAM usage - Total: {format_size(total)}, Used: {format_size(used)}, Available: {format_size(available)}",
     )
     return JSONResponse(
         content={
@@ -280,7 +249,7 @@ def cpuinfo() -> JSONResponse:
     try:
         cpu_info = psutil.cpu_stats()
         logger.info(
-            f"CPU info - Cores: {cpu_info.cores}, Arch: {cpu_info.arch}, Name: {cpu_info.name}"
+            f"CPU info - Cores: {cpu_info.cores}, Arch: {cpu_info.arch}, Name: {cpu_info.name}",
         )
         return JSONResponse(
             content={
@@ -290,8 +259,8 @@ def cpuinfo() -> JSONResponse:
             },
         )
     except Exception as e:
-        logger.error(f"Failed to retrieve CPU info: {str(e)}")
-        return JSONResponse(content={"error": f"Failed to retrieve CPU info: {str(e)}"})
+        logger.error(f"Failed to retrieve CPU info: {e!s}")
+        return JSONResponse(content={"error": f"Failed to retrieve CPU info: {e!s}"})
 
 
 ###############################################################################

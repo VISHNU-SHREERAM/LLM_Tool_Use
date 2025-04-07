@@ -1,5 +1,10 @@
+import sys
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from loguru import logger
+from models import SearchQuery
 from playwright.async_api import (
     Browser,
     BrowserContext,
@@ -7,13 +12,6 @@ from playwright.async_api import (
     Playwright,
     async_playwright,
 )
-from models import SearchQuery
-import httpx
-import toml
-import sys
-from pathlib import Path
-from loguru import logger
-
 
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
@@ -50,11 +48,6 @@ CONTEXT: BrowserContext | None = None
 SEARCH_URL = "https://www.bing.com/search?q="
 MAX_WINDOWS = 5
 
-# def #logger_info(message:str):
-#     "Log message in a server."
-#     url = toml.load("log_config.toml")["url"]+"/log"
-#     httpx.request(method="POST", url=url, json={"message":message})
-
 
 @APP.on_event("startup")
 async def startup() -> None:
@@ -90,6 +83,19 @@ async def new_window_and_search(query: SearchQuery) -> dict:
     return await search(query)
 
 
+def raise_window_limit_error() -> None:
+    """Error to indicate that the maximum number of browser windows has been reached.
+
+    Raises:
+        BrowserWindowLimitReachedError: Exception indicating the window limit has reached.
+
+    """
+    msg = "Maximum browser window limit reached"
+    raise BrowserWindowLimitReachedError(
+        msg,
+    )
+
+
 @APP.get("/browser/open_new_window")
 async def open_new_window() -> dict:
     """Open a new window in the existing browser context.
@@ -103,18 +109,6 @@ async def open_new_window() -> dict:
 
     try:
         if len(CONTEXT.pages) >= MAX_WINDOWS:
-
-            def raise_window_limit_error() -> None:
-                """Error to indicate that the maximum number of browser windows has been reached.
-
-                Raises:
-                    BrowserWindowLimitReachedError: Exception indicating the browser window limit has been reached.
-
-                """
-                raise BrowserWindowLimitReachedError(
-                    "Maximum browser window limit reached."
-                )
-
             logger.warning("Maximum browser window limit reached.")
             raise_window_limit_error()
         else:
@@ -122,7 +116,7 @@ async def open_new_window() -> dict:
             logger.info("New browser window opened successfully.")
             return {"response": "Opened a new window."}
     except BrowserWindowLimitReachedError as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error: {e!s}")
         return {"response": str(e)}
 
 
@@ -135,6 +129,7 @@ async def search(query: SearchQuery) -> dict:
 
     Returns:
         dict: A dictionary containing the response message, including search results and their URLs.
+
     """
     logger.info(f"Received search request for query: {query.query}")
     if CONTEXT is None:

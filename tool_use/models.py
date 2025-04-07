@@ -1,6 +1,6 @@
 """Contains pydantic base classes for requests and responses."""
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class CommandResponse(BaseModel):
