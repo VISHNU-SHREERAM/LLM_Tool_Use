@@ -22,4 +22,6 @@ default: hello
     cd unified_logging && uv run .\start_logging_server.py &
     cd browser_control && uv run .\browser.py &
     cd HardwareApplication && uv run .\hardware.py &
-    cd tool_use && uv run .\llm.py
+    cd tool_use && uv run fastapi run llm.py &
+    echo "access the UI at http://localhost:5000"
+    cd UI && uv run python -m http.server 5000
