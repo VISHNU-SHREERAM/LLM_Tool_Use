@@ -1,4 +1,5 @@
 """Contains pydantic base classes for requests and responses."""
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -18,6 +19,7 @@ class CommandResponse(BaseModel):
     command: str = Field(..., strict=True)
     additional: str = Field(..., strict=True)
 
+
 class CommandListResponse(BaseModel):
     """Gives a list of CommandResponse.
 
@@ -30,6 +32,7 @@ class CommandListResponse(BaseModel):
     """
 
     commands: list[CommandResponse] = Field(..., strict=True)
+
 
 class FinalResponse(BaseModel):
     """Gives a list of CommandListResponse as response and transcription as message.
@@ -47,14 +50,18 @@ class FinalResponse(BaseModel):
     response: CommandListResponse = Field(..., strict=True)
     message: str = Field(..., strict=True)
 
+
 class Query(BaseModel):
     """Query pydantic model to search in the internet using browser.
-    
+
     {"query":{"query":"..."}}
     """
+
     query: str = Field(description="Query to search in the internet using browser.")
+
 
 class Numbers(BaseModel):
     """Integers a and b."""
+
     a: float = Field(strict=True, description="a floating point number a")
     b: float = Field(strict=True, description="a floating point number b")

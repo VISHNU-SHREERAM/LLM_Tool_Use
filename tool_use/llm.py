@@ -22,32 +22,80 @@ if LOGGING_CONFIG_PATH.exists():
     logger.info("LLM service started with unified logging")
 
 
-logger.info("Initializing ChatOllama model")
-model = ChatOllama(model="qwen2.5:3b", temperature=0)
+def init_agent():
+    """Initialize and return the agent executor"""
+    try:
+        logger.info("Initializing ChatOllama model")
+        model = ChatOllama(model="qwen2.5:0.5b", temperature=0)
 
-logger.info("Defining tool-calling prompt")
-prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", "You are an AI assistant that can call functions."),
-        ("human", "{prompt}"),
-        ("placeholder", "{agent_scratchpad}"),  # Necessary for tracking tool execution
-    ]
-)
+        logger.info("Defining tool-calling prompt")
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are an AI assistant that can call functions\
+                        . When screenshots or images are captured, \
+                            you must include the image URL in your response.",
+                ),
+                ("human", "{prompt}"),
+                (
+                    "placeholder",
+                    "{agent_scratchpad}",
+                ),  # Necessary for tracking tool execution
+            ]
+        )
 
-logger.info("Creating tool-calling agent")
-agent = create_tool_calling_agent(llm=model, tools=TOOLS, prompt=prompt)
+        logger.info("Creating tool-calling agent")
+        agent = create_tool_calling_agent(llm=model, tools=TOOLS, prompt=prompt)
 
-logger.info("Wrapping agent inside an executor")
-executor = AgentExecutor(
-    agent=agent, tools=TOOLS, verbose=True, handle_parsing_errors=True
-)
+        logger.info("Wrapping agent inside an executor")
+        executor = AgentExecutor(
+            agent=agent, tools=TOOLS, verbose=True, handle_parsing_errors=True
+        )
 
-logger.info("Awaiting user input")
-user_input = input("Enter :")
-logger.info(f"User input received: {user_input}")
+        return executor
+    except Exception as e:
+        logger.error(f"Error initializing agent: {str(e)}")
+        return None
 
-logger.info("Invoking the agent")
-response = executor.invoke({"prompt": user_input})
 
-logger.info(f"Agent response: {response['output']}")
-print(response["output"])
+def main():
+    """Main function to run the LLM agent in a loop"""
+
+    # Initialize the agent
+    executor = init_agent()
+    if not executor:
+        logger.error("Failed to initialize agent. Exiting.")
+        return
+
+    logger.info("Agent initialized successfully")
+
+    # Run in a loop until the user types 'exit'
+    while True:
+        try:
+            logger.info("Awaiting user input (type 'exit' to quit)")
+            user_input = input("Enter: ")
+
+            # Check if the user wants to exit
+            if user_input.lower() == "exit":
+                logger.info("User requested exit. Shutting down.")
+                break
+
+            logger.info(f"User input received: {user_input}")
+
+            # Invoke the agent
+            logger.info("Invoking the agent")
+            response = executor.invoke({"prompt": user_input})
+
+            logger.info(f"Agent response: {response['output']}")
+            print("\nAgent response:")
+            print(response["output"])
+            print("\n" + "-" * 50 + "\n")  # Separator for readability
+
+        except Exception as e:
+            logger.error(f"Error during execution: {str(e)}")
+            print(f"An error occurred: {str(e)}")
+
+
+if __name__ == "__main__":
+    main()

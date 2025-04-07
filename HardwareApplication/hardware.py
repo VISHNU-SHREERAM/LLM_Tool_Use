@@ -147,20 +147,68 @@ async def capture():
 
 
 @app.get("/screenshot")
-def screenshot() -> FileResponse:
-    """Take a screenshot of the current screen and return it as a PNG image file."""
+async def screenshot():
+    """Take a screenshot of the current screen and return information about the saved image."""
     logger.info("Received request to take a screenshot.")
+
+    # Import check as a separate step with detailed logging
     try:
-        filename = f"./images/screenshot_{uuid.uuid4().hex}.png"
-        image = pyautogui.screenshot()
-        image.save(filename)
-        logger.info(f"Screenshot saved as {filename}.")
-        return FileResponse(
-            path=filename, media_type="image/png", filename="screenshot.png"
-        )
+        # First try to import PIL to check if Pillow is installed
+        try:
+            from PIL import Image
+
+            logger.info("PIL/Pillow is available")
+        except ImportError as e:
+            logger.error(f"PIL import error: {str(e)}")
+            return {
+                "error": f"Screenshot failed: Pillow is not installed. Please run 'pip install pillow'."
+            }
+
+        # Then try to import pyautogui separately
+        try:
+            import pyautogui
+
+            logger.info("PyAutoGUI is available")
+        except ImportError as e:
+            logger.error(f"PyAutoGUI import error: {str(e)}")
+            return {
+                "error": f"Screenshot failed: PyAutoGUI is not installed. Please run 'pip install pyautogui'."
+            }
+
+        # Create directory if it doesn't exist
+        Path("camera_images").mkdir(exist_ok=True)
+
+        # Generate a unique filename
+        filename = f"screenshot_{uuid.uuid4().hex}.jpg"
+        filepath = Path("camera_images") / filename
+
+        # Capture the screenshot with more detailed error handling
+        logger.info("Attempting to capture screenshot...")
+        try:
+            image = pyautogui.screenshot()
+            logger.info("Screenshot captured, attempting to save...")
+            image.save(str(filepath))
+            logger.info(f"Screenshot saved as {filepath}.")
+
+            # Return the same pattern of response as open_camera
+            return {
+                "message": "Screenshot captured successfully",
+                "image_path": str(filepath),
+                "filename": filename,
+            }
+        except Exception as screenshot_error:
+            logger.error(
+                f"Error during screenshot capture or save: {str(screenshot_error)}"
+            )
+            return {
+                "error": f"Screenshot operation failed: {str(screenshot_error)}. This might be due to display server access restrictions."
+            }
+
     except Exception as e:
-        logger.error(f"Screenshot failed: {str(e)}")
-        return JSONResponse(content={"error": f"Screenshot failed: {str(e)}"})
+        logger.error(f"Screenshot failed with unexpected error: {str(e)}")
+        return {
+            "error": f"Screenshot failed with unexpected error: {str(e)}. Please ensure both 'pyautogui' and 'pillow' are installed."
+        }
 
 
 @app.get("/cpu")
