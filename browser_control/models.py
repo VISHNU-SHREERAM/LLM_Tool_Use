@@ -1,3 +1,5 @@
+"""Models."""
+
 from pydantic import BaseModel, Field
 
 

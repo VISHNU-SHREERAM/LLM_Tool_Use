@@ -17,12 +17,13 @@ from unified_logging.logging_client import setup_network_logger_client  # noqa: 
 
 LOGGING_CONFIG_PATH = Path("..", "unified_logging/logging_config.toml")
 if LOGGING_CONFIG_PATH.exists():
-    logging_configs = LoggingConfigs.load_from_path(LOGGING_CONFIG_PATH)
+    logging_configs = LoggingConfigs.load_from_path(str(LOGGING_CONFIG_PATH))
     setup_network_logger_client(logging_configs, logger)
     logger.info("Tools service started with unified logging")
 
 
-with Path.open("../config.yaml") as file:
+config_path = Path("../config.yaml")
+with config_path.open() as file:
     content = file.read()
     NETWORK_CONFIG = yaml.safe_load(content)
 
@@ -139,7 +140,8 @@ def screenshot() -> dict:
         logger.info(f"screenshot response: {response.json()}")
 
         # Check if the response was successful
-        if response.status_code == 200:
+        correct_code = 200
+        if response.status_code == correct_code:
             result = response.json()
 
             # Check if the response contains image information
@@ -228,15 +230,16 @@ def open_camera() -> dict:
                 "message": "Camera opened but no image data was returned",
                 "raw_response": result,
             }
-        return {
-            "success": False,
-            "error": f"Server returned error: {response.status_code}",
-            "details": response.text,
-        }
 
-    except Exception as e:  # noqa: BLE001
+    except (httpx.ReadTimeout, httpx.ConnectError) as e:
         logger.error(f"Unknown error in open_camera: {e!s}")
         return {"success": False, "error": f"Unknown error: {e!s}"}
+
+    return {
+        "success": False,
+        "error": f"Server returned error: {response.status_code}",
+        "details": response.text,
+    }
 
 
 @tool

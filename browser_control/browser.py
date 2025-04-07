@@ -1,3 +1,5 @@
+"""Browser control service using Playwright."""
+
 import sys
 from pathlib import Path
 
@@ -5,13 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from models import SearchQuery
-from playwright.async_api import (
-    Browser,
-    BrowserContext,
-    Page,
-    Playwright,
-    async_playwright,
-)
+from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
@@ -21,7 +17,7 @@ from unified_logging.logging_client import setup_network_logger_client  # noqa: 
 
 LOGGING_CONFIG_PATH = Path("..", "unified_logging/logging_config.toml")
 if LOGGING_CONFIG_PATH.exists():
-    logging_configs = LoggingConfigs.load_from_path(LOGGING_CONFIG_PATH)
+    logging_configs = LoggingConfigs.load_from_path(str(LOGGING_CONFIG_PATH))
     setup_network_logger_client(logging_configs, logger)
     logger.info("Browser service started with unified logging")
 
@@ -199,4 +195,4 @@ async def close_browser() -> dict:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(APP, host="0.0.0.0", port=8001)
+    uvicorn.run(APP, host="127.0.0.1", port=8001)

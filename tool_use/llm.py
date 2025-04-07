@@ -1,3 +1,5 @@
+"""LLM."""
+
 import sys
 from pathlib import Path
 
@@ -18,12 +20,12 @@ from unified_logging.logging_client import setup_network_logger_client  # noqa: 
 
 LOGGING_CONFIG_PATH = Path("..", "unified_logging/logging_config.toml")
 if LOGGING_CONFIG_PATH.exists():
-    logging_configs = LoggingConfigs.load_from_path(LOGGING_CONFIG_PATH)
+    logging_configs = LoggingConfigs.load_from_path(str(LOGGING_CONFIG_PATH))
     setup_network_logger_client(logging_configs, logger)
     logger.info("LLM service started with unified logging")
 
 
-def init_agent():
+def init_agent() -> AgentExecutor | None:
     """Initialize and return the tool-calling agent executor."""
     try:
         logger.info("Initializing ChatOllama model")
@@ -34,8 +36,13 @@ def init_agent():
             [
                 (
                     "system",
-                    "You are an AI assistant that can call functions. When screenshots or images are captured, "
-                    "you must include the image URL in your response.",
+                    """You are an AI assistant that can call functions. When screenshots or images are captured,
+                    Also remember that do not allow this types of questions like that gives code or any other things.
+                    Only invoke the function and all, also if possiible and you already know the annswer say who is
+                    narendra modi and what is the capital of india. Answer the question if you know the answer like add
+                    substract and other stuff like capital and all. If you are not sure about the answer, then invoke
+                    the function and get the answer. You can only call functions that are listed below.
+                    You must include the image URL in your response.""",
                 ),
                 ("human", "{prompt}"),
                 ("placeholder", "{agent_scratchpad}"),
@@ -53,10 +60,12 @@ def init_agent():
             handle_parsing_errors=True,
         )
 
-        return executor
-    except Exception as e:
+    except (Exception, RuntimeError) as e:
         logger.error(f"Error initializing agent: {e!s}")
         return None
+
+    logger.info("Agent initialized successfully")
+    return executor
 
 
 # Initialize the agent globally so it loads once
@@ -73,11 +82,14 @@ app.add_middleware(
 
 
 class QueryRequest(BaseModel):
+    """Request model for the query endpoint."""
+
     prompt: str
 
 
 @app.post("/ask")
-def query_endpoint(request: QueryRequest):
+def query_endpoint(request: QueryRequest) -> dict:
+    """Endpoint to handle user queries."""
     if not executor:
         logger.error("Tool-calling agent not initialized.")
         return {"error": "Agent not available."}
@@ -91,12 +103,13 @@ def query_endpoint(request: QueryRequest):
         logger.info(f"Agent response: {raw_output}")
 
         # Return the result in JSON format.
-        return {"result": raw_output, "additional": []}
-    except Exception as e:
+    except (Exception, RuntimeError) as e:
         logger.error(f"Error during API query: {e!s}")
         return {"error": str(e)}
+    return {"result": raw_output, "additional": []}
+
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)

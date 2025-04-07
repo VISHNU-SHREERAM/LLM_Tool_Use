@@ -1,3 +1,5 @@
+"""Hardware."""
+
 import asyncio
 import platform
 import shutil
@@ -25,7 +27,7 @@ from unified_logging.logging_client import setup_network_logger_client  # noqa: 
 
 LOGGING_CONFIG_PATH = Path("..", "unified_logging/logging_config.toml")
 if LOGGING_CONFIG_PATH.exists():
-    logging_configs = LoggingConfigs.load_from_path(LOGGING_CONFIG_PATH)
+    logging_configs = LoggingConfigs.load_from_path(str(LOGGING_CONFIG_PATH))
     setup_network_logger_client(logging_configs, logger)
     logger.info("hardware service started with unified logging")
 
@@ -54,26 +56,33 @@ async def add_cors_header(
     return response
 
 
+class CustomError(Exception):
+    """Custom error class for handling exceptions."""
+
+
 @app.on_event("startup")
 async def startup_event() -> None:
     """On startup, open the camera and perform a warmup.
 
     If the camera cannot be opened or warmed up, raise an exception.
     """
-    global camera
     logger.info("Starting up hardware service...")
     camera = cv2.VideoCapture(0)
     if not camera.isOpened():
         logger.error("Could not open camera at startup.")
         msg = "Error: Could not open camera at startup."
-        raise Exception(msg)
+        raise CustomError(msg)
+    logger.info("Camera opened successfully.")
+
     logger.info("Camera initialized successfully.")
     for _ in range(10):
         ret, _ = camera.read()
         if not ret:
             logger.error("Could not warm up camera.")
             msg = "Error: Could not warm up camera."
-            raise Exception(msg)
+            raise CustomError(msg)
+        logger.info("Camera warmed up successfully.")
+        # Allow camera to warm up
         await asyncio.sleep(0.1)
     logger.info("Camera warmed up successfully.")
 
@@ -81,7 +90,6 @@ async def startup_event() -> None:
 @app.on_event("shutdown")
 def shutdown_event() -> None:
     """On shutdown, release the camera resource if it exists."""
-    global camera
     logger.info("Shutting down hardware service...")
     if camera is not None:
         camera.release()
@@ -89,11 +97,10 @@ def shutdown_event() -> None:
 
 
 @app.get("/capture")
-async def capture() -> JSONResponse:
+async def capture() -> dict[str, str]:
     """Take a photo with the camera and return it as base64."""
     logger.info("Received request to capture an image.")
     try:
-        import base64
         import time
 
         import cv2
@@ -121,17 +128,14 @@ async def capture() -> JSONResponse:
         # Save to file
         filename = f"camera_{int(time.time())}.jpg"
         filepath = Path("camera_images") / filename
-        cv2.imwrite(filepath, frame)
-
+        cv2.imwrite(str(filepath), frame)
         # Convert to base64 properly
         _, buffer = cv2.imencode(".jpg", frame)
-        img_bytes = buffer.tobytes()
-        img_base64 = base64.b64encode(img_bytes).decode("utf-8")
 
         logger.info(f"Image captured and saved as {filename}.")
-        return {  # noqa: TRY300
+        return {
             "message": "Camera image captured successfully",
-            "image_path": filepath,
+            "image_path": str(filepath),
             "filename": filename,  # Add just the filename for easier access
         }
 
@@ -141,7 +145,7 @@ async def capture() -> JSONResponse:
 
 
 @app.get("/screenshot")
-async def screenshot() -> JSONResponse:
+async def screenshot() -> dict[str, str]:
     """Take a screenshot of the current screen.
 
     Returns information about the saved image.
@@ -200,8 +204,9 @@ def format_size(byte_size: float) -> str:
 
     Converts bytes to appropriate units (B, KB, MB, GB, TB) based on size.
     """
+    value = 1024
     for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if byte_size < 1024:
+        if byte_size < value:
             return f"{byte_size:.2f}{unit}"
         byte_size /= 1024
     return f"{byte_size:.2f}PB"  # If it somehow exceeds TB
@@ -209,7 +214,7 @@ def format_size(byte_size: float) -> str:
 
 @app.get("/disk")
 def disk() -> JSONResponse:
-    """Returns disk usage information (total, used, free) in a formatted string."""
+    """Disk usage information (total, used, free) in a formatted string."""
     logger.info("Received request for disk usage.")
     total, used, free = get_disk_usage()
     logger.info(
@@ -226,7 +231,7 @@ def disk() -> JSONResponse:
 
 @app.get("/ram")
 def ram() -> JSONResponse:
-    """Returns total, used, and available RAM in a formatted string."""
+    """Total, used, and available RAM in a formatted string."""
     logger.info("Received request for RAM usage.")
     total = psutil.virtual_memory().total
     available = psutil.virtual_memory().available
@@ -246,7 +251,7 @@ def ram() -> JSONResponse:
 # get for no of cores, cpu arc, name
 @app.get("/cpuinfo")
 async def get_cpuinfo() -> JSONResponse:
-    """Retrieves detailed CPU information."""
+    """Detailed CPU information."""
     cpu_data = {}
 
     try:
@@ -276,9 +281,9 @@ async def get_cpuinfo() -> JSONResponse:
             cpu_data["max_frequency_mhz"] = "N/A (Not Supported)"
             cpu_data["min_frequency_mhz"] = "N/A (Not Supported)"
             cpu_data["current_frequency_mhz"] = "N/A (Not Supported)"
-        except Exception as e:
-            # Catch other potential errors during frequency fetching
-            print(f"Error fetching CPU frequency: {e}")
+        except (AttributeError, ValueError, TypeError) as e:
+            # Catch specific potential errors during frequency fetching
+            logger.error(f"Error fetching CPU frequency: {e!s}")
             cpu_data["max_frequency_mhz"] = f"Error ({type(e).__name__})"
             cpu_data["min_frequency_mhz"] = f"Error ({type(e).__name__})"
             cpu_data["current_frequency_mhz"] = f"Error ({type(e).__name__})"
@@ -306,7 +311,7 @@ async def get_cpuinfo() -> JSONResponse:
         cpu_data["os_release"] = platform.release()
         cpu_data["os_version"] = platform.version()
 
-    except Exception as e:
+    except AttributeError as e:
         # General error handling
         return JSONResponse(status_code=500, content={"error": f"Failed to retrieve CPU info: {e!s}"})
 
@@ -319,4 +324,4 @@ async def get_cpuinfo() -> JSONResponse:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8003)
+    uvicorn.run(app, host="127.0.0.1", port=8003)
