@@ -21,7 +21,7 @@ if LOGGING_CONFIG_PATH.exists():
 
 
 def init_agent():
-    """Initialize and return the agent executor"""
+    """Initialize and return the agent executor."""
     try:
         logger.info("Initializing ChatOllama model")
         model = ChatOllama(model="qwen2.5:3b", temperature=0)
@@ -48,17 +48,20 @@ def init_agent():
 
         logger.info("Wrapping agent inside an executor")
         executor = AgentExecutor(
-            agent=agent, tools=TOOLS, verbose=True, handle_parsing_errors=True,
+            agent=agent,
+            tools=TOOLS,
+            verbose=True,
+            handle_parsing_errors=True,
         )
 
         return executor
-    except Exception as e:
+    except (Exception, BaseException) as e:
         logger.error(f"Error initializing agent: {e!s}")
         return None
 
 
 def main():
-    """Main function to run the LLM agent in a loop"""
+    """Run the LLM agent in a loop."""
     # Initialize the agent
     executor = init_agent()
     if not executor:

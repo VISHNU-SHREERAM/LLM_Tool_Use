@@ -66,8 +66,8 @@ def open_new_window() -> None:
 def search(query: str) -> dict:
     """Tool will Search the internet using a browser with the provided query.
 
-    This tool performs a web search in a browser window. If no window is open,
-    it will automatically create a new window first and then perform the search.
+    This tool performs a web search in a browser window.
+    Use this tool when you don't know about the topic.
     The search results will include titles and URLs of top matches.
 
     Args:
