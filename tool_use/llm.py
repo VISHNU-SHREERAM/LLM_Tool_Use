@@ -1,10 +1,13 @@
 import sys
 from pathlib import Path
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama.chat_models import ChatOllama
 from loguru import logger
+from pydantic import BaseModel
 from tools import TOOLS
 
 parent_dir = Path(__file__).resolve().parent.parent
@@ -21,7 +24,7 @@ if LOGGING_CONFIG_PATH.exists():
 
 
 def init_agent():
-    """Initialize and return the agent executor."""
+    """Initialize and return the tool-calling agent executor."""
     try:
         logger.info("Initializing ChatOllama model")
         model = ChatOllama(model="qwen2.5:7b", temperature=0)
@@ -31,15 +34,11 @@ def init_agent():
             [
                 (
                     "system",
-                    "You are an AI assistant that can call functions\
-                        . When screenshots or images are captured, \
-                            you must include the image URL in your response.",
+                    "You are an AI assistant that can call functions. When screenshots or images are captured, "
+                    "you must include the image URL in your response.",
                 ),
                 ("human", "{prompt}"),
-                (
-                    "placeholder",
-                    "{agent_scratchpad}",
-                ),  # Necessary for tracking tool execution
+                ("placeholder", "{agent_scratchpad}"),
             ],
         )
 
@@ -55,47 +54,44 @@ def init_agent():
         )
 
         return executor
-    except (Exception, BaseException) as e:
+    except Exception as e:
         logger.error(f"Error initializing agent: {e!s}")
         return None
 
 
-def main():
-    """Run the LLM agent in a loop."""
-    # Initialize the agent
-    executor = init_agent()
+# Initialize the agent globally so it loads once
+executor = init_agent()
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class QueryRequest(BaseModel):
+    prompt: str
+
+
+@app.post("/ask")
+def query_endpoint(request: QueryRequest):
     if not executor:
-        logger.error("Failed to initialize agent. Exiting.")
-        return
+        logger.error("Tool-calling agent not initialized.")
+        return {"error": "Agent not available."}
+    try:
+        user_input = request.prompt
+        logger.info(f"Received API request with prompt: {user_input}")
 
-    logger.info("Agent initialized successfully")
+        # Invoke the tool-calling agent to process the user's input.
+        response = executor.invoke({"prompt": user_input})
+        raw_output = response.get("output", "")
+        logger.info(f"Agent response: {raw_output}")
 
-    # Run in a loop until the user types 'exit'
-    while True:
-        try:
-            logger.info("Awaiting user input (type 'exit' to quit)")
-            user_input = input("Enter: ")
-
-            # Check if the user wants to exit
-            if user_input.lower() == "exit":
-                logger.info("User requested exit. Shutting down.")
-                break
-
-            logger.info(f"User input received: {user_input}")
-
-            # Invoke the agent
-            logger.info("Invoking the agent")
-            response = executor.invoke({"prompt": user_input})
-
-            logger.info(f"Agent response: {response['output']}")
-            print("\nAgent response:")
-            print(response["output"])
-            print("\n" + "-" * 50 + "\n")  # Separator for readability
-
-        except Exception as e:
-            logger.error(f"Error during execution: {e!s}")
-            print(f"An error occurred: {e!s}")
-
-
-if __name__ == "__main__":
-    main()
+        # Return the result in JSON format.
+        return {"result": raw_output, "additional": []}
+    except Exception as e:
+        logger.error(f"Error during API query: {e!s}")
+        return {"error": str(e)}

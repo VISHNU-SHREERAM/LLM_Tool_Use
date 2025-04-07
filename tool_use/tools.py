@@ -196,7 +196,7 @@ def open_camera() -> dict:
     logger.info("Executing open_camera tool")
     ok = 200
     try:
-        response = httpx.get(HARDWARE_URL + "/capture", timeout=10.0)
+        response = httpx.get(HARDWARE_URL + "/capture", timeout=15.0)
         logger.info(f"open_camera response: {response.json()}")
 
         # Check if the response was successful
