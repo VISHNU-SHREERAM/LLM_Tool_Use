@@ -1,4 +1,5 @@
 import asyncio
+import platform
 import shutil
 import sys
 import uuid
@@ -6,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from threading import Lock
 
+import cpuinfo
 import cv2
 import psutil
 import pyautogui
@@ -243,24 +245,72 @@ def ram() -> JSONResponse:
 
 # get for no of cores, cpu arc, name
 @app.get("/cpuinfo")
-def cpuinfo() -> JSONResponse:
-    """Returns the number of cores, CPU architecture, and name."""
-    logger.info("Received request for CPU information.")
+async def get_cpuinfo() -> JSONResponse:
+    """Retrieves detailed CPU information."""
+    cpu_data = {}
+
     try:
-        cpu_info = psutil.cpu_stats()
-        logger.info(
-            f"CPU info - Cores: {cpu_info.cores}, Arch: {cpu_info.arch}, Name: {cpu_info.name}",
-        )
-        return JSONResponse(
-            content={
-                "cores": cpu_info.cores,
-                "arch": cpu_info.arch,
-                "name": cpu_info.name,
-            },
-        )
+        # --- Using cpuinfo for reliable name ---
+        info = cpuinfo.get_cpu_info()
+        cpu_data["cpu_name"] = info.get("brand_raw", "N/A")
+        cpu_data["architecture"] = info.get("arch_string_raw", platform.machine())
+        cpu_data["bits"] = info.get("bits", "N/A")
+        cpu_data["vendor_id"] = info.get("vendor_id_raw", "N/A")
+
+        # --- Using psutil for counts, frequencies, and usage ---
+        cpu_data["physical_cores"] = psutil.cpu_count(logical=False)
+        cpu_data["logical_cores"] = psutil.cpu_count(logical=True)
+
+        # CPU Frequency
+        try:
+            cpufreq = psutil.cpu_freq()
+            if cpufreq:
+                cpu_data["max_frequency_mhz"] = cpufreq.max
+                cpu_data["min_frequency_mhz"] = cpufreq.min
+                cpu_data["current_frequency_mhz"] = cpufreq.current
+            else:
+                cpu_data["max_frequency_mhz"] = "N/A (Not Supported)"
+                cpu_data["min_frequency_mhz"] = "N/A (Not Supported)"
+                cpu_data["current_frequency_mhz"] = "N/A (Not Supported)"
+        except NotImplementedError:
+            cpu_data["max_frequency_mhz"] = "N/A (Not Supported)"
+            cpu_data["min_frequency_mhz"] = "N/A (Not Supported)"
+            cpu_data["current_frequency_mhz"] = "N/A (Not Supported)"
+        except Exception as e:
+            # Catch other potential errors during frequency fetching
+            print(f"Error fetching CPU frequency: {e}")
+            cpu_data["max_frequency_mhz"] = f"Error ({type(e).__name__})"
+            cpu_data["min_frequency_mhz"] = f"Error ({type(e).__name__})"
+            cpu_data["current_frequency_mhz"] = f"Error ({type(e).__name__})"
+
+        # CPU Usage (snapshot over a short interval)
+        # Using a small interval gives a more "current" snapshot but blocks for that duration.
+        # interval=None is non-blocking but compares CPU times since the last call *by this process*,
+        # which might not be what you want for a single API request. 0.1 to 0.5 is often reasonable.
+        interval = 0.2
+        cpu_data["total_cpu_usage_percent"] = psutil.cpu_percent(interval=interval)
+        cpu_data["per_cpu_usage_percent"] = psutil.cpu_percent(interval=interval, percpu=True)
+
+        # Detailed CPU times percentage
+        cpu_times = psutil.cpu_times_percent(interval=interval)
+        cpu_data["cpu_usage_breakdown_percent"] = {
+            "user": getattr(cpu_times, "user", "N/A"),
+            "system": getattr(cpu_times, "system", "N/A"),
+            "idle": getattr(cpu_times, "idle", "N/A"),
+            "interrupt": getattr(cpu_times, "interrupt", "N/A"),  # May not be available on all OS
+            "dpc": getattr(cpu_times, "dpc", "N/A"),  # May not be available on all OS (Windows)
+        }
+
+        # --- Basic Platform Info ---
+        cpu_data["os_platform"] = platform.system()
+        cpu_data["os_release"] = platform.release()
+        cpu_data["os_version"] = platform.version()
+
     except Exception as e:
-        logger.error(f"Failed to retrieve CPU info: {e!s}")
-        return JSONResponse(content={"error": f"Failed to retrieve CPU info: {e!s}"})
+        # General error handling
+        return JSONResponse(status_code=500, content={"error": f"Failed to retrieve CPU info: {e!s}"})
+
+    return JSONResponse(content=cpu_data)
 
 
 ###############################################################################

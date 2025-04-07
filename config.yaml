@@ -1,9 +1,9 @@
 browser_service:
-  host: 10.32.7.130
+  host: localhost
   port: 8001
 hardware_service:
-  host: 10.32.7.130
+  host: localhost
   port: 8003
 logger_service:
-  host: 10.32.7.130
+  host: localhost
   port: 8080

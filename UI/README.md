@@ -1,1 +1,0 @@
-# Run the index.html inside new_interface
