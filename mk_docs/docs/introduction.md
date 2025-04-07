@@ -1,33 +1,46 @@
-# Introduction
+# Introduction to AutoMate
 
-## Features and Commands
+## Project Overview
 
-Our **Voice-Based Control System** allows users to interact with their system using voice commands. Below is a list of supported commands and their variations.
+AutoMate is an intelligent computer control system that bridges natural language interactions with computer operations through Large Language Models (LLMs). It enables users to control their systems via commands, automating tasks that would typically require multiple manual steps.
 
-### 📌 **Command List:**
+## Purpose & Vision
 
-#### 🖥️ **Application Control**
-| **Command**              | **Trigger Phrases**                                  |
-|--------------------------|-----------------------------------------------------|
-| 🌐 **Open New Window**  | `open browser`, `open new browser`, `start new browser`, `open the browser`, `start browser` |
-| ❌ **Close Browser**    | `close browser`, `terminate browser`                 |
-| 🔍 **Search** (RPA)        | `search`, `search for`, `bing`                        |
+The goal of AutoMate is to create a seamless interface between human intent and computer actions. By leveraging the capabilities of modern LLMs, AutoMate interprets natural language queries and translates them into appropriate system actions, allowing for a more intuitive human-computer interaction.
 
-#### 🖼️ **Hardware Control**
-| **Command**              | **Trigger Phrases**                                  |
-|--------------------------|-----------------------------------------------------|
-| 📷 **Capture**         | `open camera`, `open the camera`                      |
-| 🖼️ **Screenshot**     | `take screenshot`, `take a picture`, `screenshot`, `screen shot` |
+## Core Capabilities
 
-#### ⚙️ **System Information**
-| **Command**              | **Trigger Phrases**                                  |
-|--------------------------|-----------------------------------------------------|
-| 💾 **RAM Info**       | `show ram info`, `get ram info`, `show ram usage`, `get ram usage` |
-| 💿 **Disk Info**      | `show disk info`, `get disk info`, `show disk usage`, `get disk usage`, `show disc info`, `get disc info`, `show disc usage`, `get disc usage` |
-| ⚙️ **CPU Usage**      | `show cpu usage`, `get cpu usage`                    |
-| 🔍 **CPU Info**       | `show cpu info`, `get cpu info`                      |
-| 🖥️ **System Info** (RPA)   | `show system info`, `get system info`, `show hardware info`, `get hardware info`, `show life`, `show life help` |
+AutoMate is built around several key capabilities:
 
----
+### Natural Language Understanding
 
-This document provides an overview of how to use the **Voice Control System** effectively. Use the provided commands to interact with the system hands-free! 🚀  
+Using the Qwen2.5 model via Ollama, AutoMate can parse and understand a wide range of instructions phrased in natural language. The system identifies the user's intent and maps it to specific system tools and actions.
+
+### Tool-Based Architecture
+
+AutoMate uses a tool-calling architecture where the LLM determines which tools to invoke based on user input. The system includes tools for:
+
+- **Browser control**: Opening, searching, and closing web browsers
+- **Hardware interaction**: Taking screenshots and accessing the camera
+- **System monitoring**: Checking CPU, RAM, and disk usage
+
+### Modular Design
+
+The system is built with modularity in mind, separating concerns into distinct services:
+
+- **LLM Service**: Handles natural language understanding and tool selection
+- **Browser Service**: Controls web browser operations
+- **Hardware Service**: Interfaces with system hardware components
+- **Logging Service**: Provides unified logging across all components
+
+## Use Cases
+
+AutoMate is particularly useful for:
+
+1. **Efficiency gains**: Perform multi-step tasks with a single command
+2. **Accessibility**: Make computer operations more accessible to users with limited technical knowledge
+3. **Remote control**: Manage systems through text commands from a distance
+
+## Project Context
+
+AutoMate was developed as part of an MLOps course to demonstrate the practical application of LLMs in everyday computing. It showcases how modern AI techniques can be integrated with traditional system operations to create new interaction paradigms.
