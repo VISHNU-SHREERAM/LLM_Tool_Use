@@ -23,8 +23,3 @@ default: hello
     cd browser_control && uv run .\browser.py &
     cd HardwareApplication && uv run .\hardware.py &
     cd tool_use && uv run .\llm.py
-
-@mkdocs:
-    echo "serving..."
-    cd mk_docs/voice_control_mk_docs && uv sync && uv run mkdocs serve -a 127.0.0.1:8888
-    echo "Documentation serving successfully"

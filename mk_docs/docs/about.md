@@ -1,9 +1,57 @@
-# About Us
-We are developing a voice control system where you can control a system from another(or the same system) through voice commands
+# About AutoMate
 
-### Our Experience
-We got to know a full SaaS workflow. This was the first time we developed something this big, where coordination between teammates where really done with the help of tools like uv, git, ruff, etc..
+## Project Overview
 
-Learning Containerisation and Git workflow would be some of the best learnings we might have had from this project.
+AutoMate is an advanced voice and text control system that allows you to control your computer using natural language instructions. Developed as part of an MLOps course project, AutoMate demonstrates the practical application of Large Language Models (LLMs) for everyday computing tasks.
 
-Even though we added many things as per the requirements, we started without adding many, so it was difficult to incoperate those. But once we started using the tools and structures mentioned in the requirements, we felt the real use of that ... It really made our lives easier later. Taking the example of Yaml and toml files, we were able to easily change the commands without really messing with the code
+## The Team
+We are
+- Vishnu Shreeram (142201014)
+- Dhruvadeep Malakar (142201026)
+- DODDAPANENI UDITH (142201012)
+
+Our team have worked together to create a comprehensive system that integrates various technologies:
+
+- **LLM Integration**: Implemented Ollama with Qwen2.5 model for natural language understanding
+- **Browser Control**: Developed browser automation using Playwright
+- **Hardware Access**: Created hardware interaction tools for system monitoring and camera control
+- **Unified Logging**: Built a centralized logging system to simplify debugging and monitoring
+
+## Development Journey
+
+Developing AutoMate has been a significant learning experience for our team. This project represents our first large-scale system with multiple interconnected components working together.
+
+### Challenges and Learnings
+
+Throughout the development process, we faced several challenges that led to valuable learnings:
+
+- **Coordinating Microservices**: Managing communication between the LLM service, browser control, and hardware services required careful architecture planning
+- **Tool Integration**: Creating a cohesive system where tools could be dynamically called by the LLM agent
+- **Error Handling**: Building robust error handling across distributed components
+- **Configuration Management**: Learning to use YAML and TOML for flexible configuration without code changes
+
+### DevOps Practices
+
+The project enabled us to implement and learn several DevOps best practices:
+
+- **Git Workflow**: Managing branches, pull requests, and merges in a team environment
+- **Code Quality Tools**: Using Ruff for linting and code quality enforcement
+- **Package Management**: Leveraging uv for dependency management and environment setup
+- **Containerization**: Exploring container-based deployment for individual services
+- **Documentation**: Creating comprehensive documentation with MkDocs
+
+## Acknowledgments
+
+We would like to thank:
+
+- Our MLOps course instructors for guidance and support
+- The open-source communities behind Ollama, LangChain, Playwright, and FastAPI
+- Fellow students who provided feedback during testing
+
+## Contact
+
+For questions, suggestions, or collaboration opportunities, please reach out to us through our GitHub repository.
+
+---
+
+*"AutoMate: Where AI meets everyday computing to make your digital life easier."*
