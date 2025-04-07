@@ -24,7 +24,7 @@ def init_agent():
     """Initialize and return the agent executor."""
     try:
         logger.info("Initializing ChatOllama model")
-        model = ChatOllama(model="qwen2.5:3b", temperature=0)
+        model = ChatOllama(model="qwen2.5:7b", temperature=0)
 
         logger.info("Defining tool-calling prompt")
         prompt = ChatPromptTemplate.from_messages(

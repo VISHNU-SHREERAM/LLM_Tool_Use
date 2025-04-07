@@ -27,16 +27,10 @@ with Path.open("../config.yaml") as file:
     NETWORK_CONFIG = yaml.safe_load(content)
 
 BROWSER_URL = (
-    "http://"
-    + NETWORK_CONFIG["browser_service"]["host"]
-    + ":"
-    + str(NETWORK_CONFIG["browser_service"]["port"])
+    "http://" + NETWORK_CONFIG["browser_service"]["host"] + ":" + str(NETWORK_CONFIG["browser_service"]["port"])
 )
 HARDWARE_URL = (
-    "http://"
-    + NETWORK_CONFIG["hardware_service"]["host"]
-    + ":"
-    + str(NETWORK_CONFIG["hardware_service"]["port"])
+    "http://" + NETWORK_CONFIG["hardware_service"]["host"] + ":" + str(NETWORK_CONFIG["hardware_service"]["port"])
 )
 
 
@@ -83,12 +77,13 @@ def search(query: str) -> dict:
     Returns:
     -------
         JSON object with search results including titles and URLs
+
     """
     logger.info(f"Executing search tool with query: {query}")
     try:
         response = httpx.post(
             url=BROWSER_URL + "/browser/search",
-            json={"query":query},
+            json={"query": query},
             timeout=10.0,  # Set explicit timeout
         )
         logger.info(f"search response: {response.json()}")
@@ -305,11 +300,9 @@ def show_cpu() -> dict:
     """
     logger.info("Executing show_cpu tool")
     response1 = httpx.get(HARDWARE_URL + "/cpuinfo")
-    response2 = httpx.get(HARDWARE_URL + "/cpu")
     result1 = response1.json()
-    result2 = response2.json()
-    logger.info(f"show_cpu response: {result1}, {result2}")
-    return {"hardware description": result1, "usage info": result2}
+    logger.info(f"show_cpu response: {result1}")
+    return {"hardware description": result1}
 
 
 @tool
@@ -328,10 +321,31 @@ def show_hardware_info() -> dict:
 
     """
     logger.info("Executing show_hardware_info tool")
-    response = httpx.get(HARDWARE_URL + "/screenshot")
-    result = response.json()
-    logger.info(f"show_hardware_info response: {result}")
-    return result
+
+    # Get CPU information
+    response_cpu = httpx.get(HARDWARE_URL + "/cpuinfo")
+    cpu_info = response_cpu.json()
+    logger.info(f"CPU info: {cpu_info}")
+
+    # Get RAM information
+    response_ram = httpx.get(HARDWARE_URL + "/ram")
+    ram_info = response_ram.json()
+    logger.info(f"RAM info: {ram_info}")
+
+    # Get Disk information
+    response_disk = httpx.get(HARDWARE_URL + "/disk")
+    disk_info = response_disk.json()
+    logger.info(f"Disk info: {disk_info}")
+
+    # Combine all hardware information into one dictionary
+    combined_info = {
+        "cpu": cpu_info,
+        "ram": ram_info,
+        "disk": disk_info,
+    }
+    logger.info(f"show_hardware_info result: {combined_info}")
+
+    return combined_info
 
 
 @tool
