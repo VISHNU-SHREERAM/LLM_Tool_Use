@@ -7,7 +7,7 @@ import httpx
 import yaml
 from langchain_core.tools import tool
 from loguru import logger
-from models import Numbers, Query
+from models import Numbers
 
 parent_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(parent_dir))
@@ -63,7 +63,7 @@ def open_new_window() -> None:
 
 
 @tool
-def search(query: Query) -> dict:
+def search(query: str) -> dict:
     """Tool will Search the internet using a browser with the provided query.
 
     This tool performs a web search in a browser window. If no window is open,
@@ -77,21 +77,18 @@ def search(query: Query) -> dict:
 
     Examples:
     --------
-    If you want to search for "X", you can use this tool like:
-        search({"query": "X"})
-        OR
-        search({"query": "how to make pancakes"})
+    If you want to search for "...", you can use this tool like:
+        search(query = "..."})
 
     Returns:
     -------
         JSON object with search results including titles and URLs
-
     """
     logger.info(f"Executing search tool with query: {query}")
     try:
         response = httpx.post(
             url=BROWSER_URL + "/browser/search",
-            json=query.model_dump(),
+            json={"query":query},
             timeout=10.0,  # Set explicit timeout
         )
         logger.info(f"search response: {response.json()}")
@@ -395,6 +392,4 @@ TOOLS = [
     show_disk,
     show_cpu,
     show_hardware_info,
-    add,
-    multiply,
 ]
