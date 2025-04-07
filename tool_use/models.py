@@ -50,16 +50,6 @@ class FinalResponse(BaseModel):
     response: CommandListResponse = Field(..., strict=True)
     message: str = Field(..., strict=True)
 
-
-class Query(BaseModel):
-    """Query pydantic model to search in the internet using browser.
-
-    {"query":{"query":"..."}}
-    """
-
-    query: str = Field(description="Query to search in the internet using browser.")
-
-
 class Numbers(BaseModel):
     """Integers a and b."""
 
